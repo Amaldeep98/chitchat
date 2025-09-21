@@ -410,18 +410,18 @@ If you prefer using MongoDB Atlas instead of local MongoDB:
    ```bash
    # If you get "Cannot find module package.json" error
    cd /home/ubuntu/chit-chat
-   
+
    # Check directory structure
    ls -la client/
-   
+
    # If client directory is corrupted, restore from git
    rm -rf client
    git checkout master
    git pull origin master
-   
+
    # Verify structure is restored
    ls -la client/package.json
-   
+
    # Reinstall dependencies
    npm run install-all
    ```
