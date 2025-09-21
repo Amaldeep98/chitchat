@@ -174,7 +174,25 @@ npm cache clean --force
 print_status "Installing all dependencies..."
 npm run install-all
 
-print_success "Dependencies installed successfully"
+# Install missing dependencies that cause build failures
+print_status "Installing missing dependencies for build..."
+cd client
+
+# Install missing Material-UI packages
+npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @mui/lab --no-audit --no-fund --no-package-lock
+
+# Install missing core dependencies
+npm install axios react-router-dom socket.io-client crypto-js simple-peer web-vitals --no-audit --no-fund --no-package-lock
+
+# Install missing TypeScript types
+npm install @types/crypto-js @types/socket.io-client @types/simple-peer @types/jest @types/react @types/react-dom @types/node --no-audit --no-fund --no-package-lock
+
+# Install missing testing dependencies
+npm install @testing-library/dom @testing-library/jest-dom @testing-library/react @testing-library/user-event --no-audit --no-fund --no-package-lock
+
+cd ..
+
+print_success "All dependencies installed successfully"
 
 print_status "Step 6: Building React Application"
 echo "======================================"
@@ -196,6 +214,31 @@ rm -rf node_modules
 # Reinstall with minimal memory usage
 print_status "Reinstalling dependencies with minimal memory..."
 npm install --no-optional --no-audit --no-fund
+
+# Fix web-vitals compatibility issue
+print_status "Fixing web-vitals compatibility..."
+if [ -f "src/reportWebVitals.ts" ]; then
+    # Backup original file
+    cp src/reportWebVitals.ts src/reportWebVitals.ts.backup
+    
+    # Create compatible version
+    cat > src/reportWebVitals.ts << 'EOF'
+const reportWebVitals = (onPerfEntry?: any) => {
+  if (onPerfEntry && onPerfEntry instanceof Function) {
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS(onPerfEntry);
+      getFID(onPerfEntry);
+      getFCP(onPerfEntry);
+      getLCP(onPerfEntry);
+      getTTFB(onPerfEntry);
+    });
+  }
+};
+
+export default reportWebVitals;
+EOF
+    print_success "web-vitals compatibility fixed"
+fi
 
 # Build with multiple attempts
 print_status "Starting memory-optimized build..."
