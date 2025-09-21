@@ -11,6 +11,17 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
+// @route   GET /api/auth/health
+// @desc    Health check endpoint
+// @access  Public
+router.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    message: 'Backend server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // @route   POST /api/auth/register
 // @desc    Register a new user
 // @access  Public
@@ -87,13 +98,13 @@ router.post('/login', [
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'No account found with this email address' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Incorrect password' });
     }
 
     // Update online status

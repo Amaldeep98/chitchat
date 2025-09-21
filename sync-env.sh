@@ -32,3 +32,4 @@ cat server/.env | grep -E "(PORT|HOST|SERVER_URL|CLIENT_URL)" | head -4
 echo ""
 echo "Client:"
 cat client/.env | grep -E "REACT_APP_" | head -3
+

@@ -1,0 +1,10 @@
+version: "2"
+authtoken_from_env: true
+tunnels:
+  frontend:
+    addr: 3000
+    proto: http
+  backend:
+    addr: 5000
+    proto: http
+

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
+const crypto = require('crypto-js');
 const Message = require('./models/Message');
 const User = require('./models/User');
 require('dotenv').config();
@@ -19,7 +20,12 @@ const io = socketIo(server, {
     origin: [
       process.env.CLIENT_URL || "http://localhost:3000",
       "http://localhost:3000",
-      "http://192.168.0.102:3000"
+      "http://192.168.0.102:3000",
+      "http://192.168.0.102:5000",
+      "https://b16584797980.ngrok-free.app",
+      /^http:\/\/192\.168\.0\.\d+:3000$/,
+      /^http:\/\/192\.168\.0\.\d+:5000$/,
+      /^https:\/\/.*\.ngrok-free\.app$/
     ],
     methods: ["GET", "POST"]
   }
@@ -30,7 +36,12 @@ app.use(cors({
   origin: [
     process.env.CLIENT_URL || "http://localhost:3000",
     "http://localhost:3000", 
-    "http://192.168.0.102:3000"
+    "http://192.168.0.102:3000",
+    "http://192.168.0.102:5000",
+    "https://b16584797980.ngrok-free.app",
+    /^http:\/\/192\.168\.0\.\d+:3000$/,
+    /^http:\/\/192\.168\.0\.\d+:5000$/,
+    /^https:\/\/.*\.ngrok-free\.app$/
   ],
   credentials: true
 }));
@@ -50,6 +61,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/chat', chatRoutes);
+
+// Helper function to detect if a message is encrypted
+const isEncrypted = (message) => {
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  return base64Regex.test(message) && message.length > 20;
+};
 
 // Socket.io for real-time chat
 io.on('connection', (socket) => {
@@ -79,6 +96,14 @@ io.on('connection', (socket) => {
     try {
       console.log('Received send_message:', data);
       const { receiverId, message, senderId } = data;
+      
+      // Check if message is encrypted
+      const messageIsEncrypted = isEncrypted(message);
+      if (messageIsEncrypted) {
+        console.log('🔒 Encrypted message detected and stored securely');
+      } else {
+        console.log('📝 Plain text message received');
+      }
       
       // Save message to database
       const newMessage = new Message({
@@ -156,6 +181,56 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
+  });
+
+  // Call event handlers
+  socket.on('call_user', (data) => {
+    console.log('📞 Call initiated:', data);
+    const { to, type, from } = data;
+    
+    // Forward call to target user
+    io.to(to).emit('call_user', {
+      from: from,
+      type: type,
+      to: to
+    });
+  });
+
+  socket.on('call_accepted', (data) => {
+    console.log('📞 Call accepted:', data);
+    const { to, from } = data;
+    
+    // Notify caller that call was accepted
+    io.to(from).emit('call_accepted', {
+      from: to,
+      to: from
+    });
+  });
+
+  socket.on('call_rejected', (data) => {
+    console.log('📞 Call rejected:', data);
+    const { to, from } = data;
+    
+    // Notify caller that call was rejected
+    io.to(from).emit('call_rejected', {
+      from: to,
+      to: from
+    });
+  });
+
+  socket.on('call_end', (data) => {
+    console.log('📞 Call ended:', data);
+    const { to, from } = data;
+    
+    // Notify both users that call ended
+    io.to(to).emit('call_end', {
+      from: from,
+      to: to
+    });
+    io.to(from).emit('call_end', {
+      from: to,
+      to: from
+    });
   });
 
   socket.on('disconnect', async () => {
