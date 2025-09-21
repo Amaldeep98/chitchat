@@ -179,15 +179,50 @@ print_success "Dependencies installed successfully"
 print_status "Step 6: Building React Application"
 echo "======================================"
 
-# Build React application with memory optimization
-print_status "Building React application..."
+# Build React application with aggressive memory optimization
+print_status "Building React application with memory optimization..."
 cd client
 
-# Set memory limit for build process
-export NODE_OPTIONS="--max-old-space-size=512"
+# Set very conservative memory limits for t2.micro
+export NODE_OPTIONS="--max-old-space-size=256"
+export GENERATE_SOURCEMAP=false
+export INLINE_RUNTIME_CHUNK=false
 
-# Build with minimal source maps to save memory
-GENERATE_SOURCEMAP=false npm run build
+# Clean up before build
+print_status "Cleaning up before build..."
+rm -rf build
+rm -rf node_modules
+
+# Reinstall with minimal memory usage
+print_status "Reinstalling dependencies with minimal memory..."
+npm install --no-optional --no-audit --no-fund
+
+# Build with multiple attempts
+print_status "Starting memory-optimized build..."
+for attempt in 1 2 3; do
+    print_status "Build attempt $attempt/3..."
+    
+    if npm run build; then
+        print_success "Build completed successfully on attempt $attempt!"
+        break
+    else
+        print_warning "Build failed on attempt $attempt"
+        
+        if [ $attempt -lt 3 ]; then
+            print_status "Cleaning up and retrying..."
+            rm -rf build
+            sleep 10
+        else
+            print_error "All build attempts failed. Trying alternative method..."
+            
+            # Alternative: Use the dedicated build script
+            cd ..
+            chmod +x build-ec2.sh
+            ./build-ec2.sh
+            break
+        fi
+    fi
+done
 
 cd ..
 
@@ -195,8 +230,11 @@ cd ..
 if [ -d "client/build" ]; then
     print_success "React application built successfully"
     ls -la client/build/
+    BUILD_SIZE=$(du -sh client/build | cut -f1)
+    print_success "Build size: $BUILD_SIZE"
 else
     print_error "Build failed! Build directory not found"
+    print_warning "Try running: ./build-ec2.sh"
     exit 1
 fi
 
