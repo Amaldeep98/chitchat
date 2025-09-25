@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Container,
   Grid,
@@ -47,6 +48,7 @@ interface User {
 
 const Discover: React.FC = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -55,16 +57,25 @@ const Discover: React.FC = () => {
   const [sendingRequest, setSendingRequest] = useState(false);
 
   useEffect(() => {
-    fetchRandomUsers();
-  }, []);
+    if (isAuthenticated) {
+      fetchRandomUsers();
+    } else {
+      setLoading(false);
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
 
   const fetchRandomUsers = async () => {
     try {
       setLoading(true);
       const response = await usersAPI.getRandomUsers();
-      setUsers(response.data.users);
+      // Ensure we always have an array, even if API returns unexpected data
+      const usersData = response.data?.users || [];
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       console.error('Error fetching users:', error);
+      // Set empty array on error to prevent undefined.map errors
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -79,9 +90,13 @@ const Discover: React.FC = () => {
     try {
       setLoading(true);
       const response = await usersAPI.searchUsers(searchQuery);
-      setUsers(response.data.users);
+      // Ensure we always have an array, even if API returns unexpected data
+      const usersData = response.data?.users || [];
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       console.error('Error searching users:', error);
+      // Set empty array on error to prevent undefined.map errors
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -167,7 +182,7 @@ const Discover: React.FC = () => {
       </Box>
 
       <Grid container spacing={3}>
-        {users.map((user) => (
+        {(users || []).map((user) => (
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={user._id}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>
@@ -276,6 +291,12 @@ const Discover: React.FC = () => {
           </Grid>
         ))}
       </Grid>
+
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
 
       {users.length === 0 && !loading && (
         <Box sx={{ textAlign: 'center', mt: 4 }}>

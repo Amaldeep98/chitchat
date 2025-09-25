@@ -4,38 +4,50 @@ import axios from 'axios';
 const getApiBaseUrl = () => {
   const hostname = window.location.hostname;
   
-  // If using ngrok (HTTPS), use the LocalTunnel backend URL
-  if (hostname.includes('ngrok-free.app') || hostname.includes('ngrok.io')) {
-    // Use the LocalTunnel backend tunnel URL
-    return 'https://chitchat-backend-2025.loca.lt/api';
+  console.log('🔍 API Service Debug:', {
+    hostname,
+    REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+    isDevTunnels: hostname.includes('devtunnels.ms'),
+    isNgrok: hostname.includes('ngrok-free.app') || hostname.includes('ngrok.io'),
+    isCloudflare: hostname.includes('trycloudflare.com')
+  });
+  
+  // Always use environment variable for API URL
+  const url = process.env.REACT_APP_API_URL;
+  
+  // Log the detected environment for debugging
+  if (hostname.includes('devtunnels.ms')) {
+    console.log('🌐 Detected Dev Tunnels environment, using API URL:', url);
+  } else if (hostname.includes('ngrok-free.app') || hostname.includes('ngrok.io')) {
+    console.log('🌐 Detected ngrok environment, using API URL:', url);
+  } else if (hostname.includes('trycloudflare.com')) {
+    console.log('🌐 Detected Cloudflare tunnel environment, using API URL:', url);
+  } else {
+    console.log('🌐 Detected local development environment, using API URL:', url);
   }
   
-  // For local development
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
-    return process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-  }
-  
-  // Fallback
-  return process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  return url;
 };
 
 // Dynamic Socket.io URL based on current hostname
 export const getSocketUrl = () => {
   const hostname = window.location.hostname;
   
-  // If using ngrok (HTTPS), use the LocalTunnel backend URL
-  if (hostname.includes('ngrok-free.app') || hostname.includes('ngrok.io')) {
-    // Use the LocalTunnel backend tunnel URL
-    return 'https://chitchat-backend-2025.loca.lt';
+  // Always use environment variable for socket URL
+  const url = process.env.REACT_APP_SOCKET_URL;
+  
+  // Log the detected environment for debugging
+  if (hostname.includes('devtunnels.ms')) {
+    console.log('🌐 Detected Dev Tunnels environment, using Socket URL:', url);
+  } else if (hostname.includes('ngrok-free.app') || hostname.includes('ngrok.io')) {
+    console.log('🌐 Detected ngrok environment, using Socket URL:', url);
+  } else if (hostname.includes('trycloudflare.com')) {
+    console.log('🌐 Detected Cloudflare tunnel environment, using Socket URL:', url);
+  } else {
+    console.log('🌐 Detected local development environment, using Socket URL:', url);
   }
   
-  // For local development
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
-    return process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
-  }
-  
-  // Fallback
-  return process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+  return url;
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -102,38 +114,39 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  register: (userData: any) => api.post('/auth/register', userData),
-  login: (credentials: any) => api.post('/auth/login', credentials),
-  getMe: () => api.get('/auth/me'),
-  logout: () => api.post('/auth/logout'),
-  deleteAccount: () => api.delete('/auth/account'),
+  register: (userData: any) => api.post('/api/auth/register', userData),
+  login: (credentials: any) => api.post('/api/auth/login', credentials),
+  getMe: () => api.get('/api/auth/me'),
+  logout: () => api.post('/api/auth/logout'),
+  deleteAccount: () => api.delete('/api/auth/account'),
+  health: () => api.get('/api/health'),
 };
 
 // Users API
 export const usersAPI = {
-  getRandomUsers: () => api.get('/users/random'),
-  searchUsers: (query: string) => api.get(`/users/search?q=${query}`),
-  getUserProfile: (userId: string) => api.get(`/users/${userId}`),
-  updateProfile: (data: any) => api.put('/users/profile', data),
-  updateAvatar: (avatar: string) => api.put('/users/avatar', { avatar }),
+  getRandomUsers: () => api.get('/api/users/random'),
+  searchUsers: (query: string) => api.get(`/api/users/search?q=${query}`),
+  getUserProfile: (userId: string) => api.get(`/api/users/${userId}`),
+  updateProfile: (data: any) => api.put('/api/users/profile', data),
+  updateAvatar: (avatar: string) => api.put('/api/users/avatar', { avatar }),
 };
 
 // Friends API
 export const friendsAPI = {
-  sendFriendRequest: (userId: string) => api.post('/friends/request', { userId }),
-  getFriendRequests: () => api.get('/friends/requests'),
+  sendFriendRequest: (userId: string) => api.post('/api/friends/request', { userId }),
+  getFriendRequests: () => api.get('/api/friends/requests'),
   respondToFriendRequest: (requestId: string, action: 'accept' | 'reject') => 
-    api.put(`/friends/request/${requestId}`, { action }),
-  getFriends: () => api.get('/friends'),
-  removeFriend: (friendId: string) => api.delete(`/friends/${friendId}`),
+    api.put(`/api/friends/request/${requestId}`, { action }),
+  getFriends: () => api.get('/api/friends'),
+  removeFriend: (friendId: string) => api.delete(`/api/friends/${friendId}`),
 };
 
 // Chat API
 export const chatAPI = {
-  getChatHistory: (userId: string) => api.get(`/chat/${userId}`),
-  sendMessage: (data: any) => api.post('/chat/send', data),
-  markMessageAsRead: (messageId: string) => api.put(`/chat/message/${messageId}/read`),
-  getConversations: () => api.get('/chat/conversations'),
+  getChatHistory: (userId: string) => api.get(`/api/chat/${userId}`),
+  sendMessage: (data: any) => api.post('/api/chat/send', data),
+  markMessageAsRead: (messageId: string) => api.put(`/api/chat/message/${messageId}/read`),
+  getConversations: () => api.get('/api/chat/conversations'),
 };
 
 export default api;

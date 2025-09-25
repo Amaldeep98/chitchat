@@ -64,7 +64,12 @@ const Dashboard: React.FC = () => {
     fetchDashboardData();
     
     // Initialize socket connection
-    const newSocket = io(getSocketUrl());
+    const socketUrl = getSocketUrl();
+    if (!socketUrl) {
+      console.error('Socket URL not configured');
+      return;
+    }
+    const newSocket = io(socketUrl);
     newSocket.emit('join_room', user?._id);
     
     // Listen for conversation updates
@@ -131,8 +136,11 @@ const Dashboard: React.FC = () => {
         chatAPI.getConversations(),
       ]);
       
-      setRandomUsers(randomUsersRes.data.users.slice(0, 3));
-      setConversations(conversationsRes.data.conversations.slice(0, 5));
+      // Ensure we always have arrays, even if API returns unexpected data
+      const usersData = randomUsersRes.data?.users || [];
+      const conversationsData = conversationsRes.data?.conversations || [];
+      setRandomUsers(Array.isArray(usersData) ? usersData.slice(0, 3) : []);
+      setConversations(Array.isArray(conversationsData) ? conversationsData.slice(0, 5) : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -205,9 +213,9 @@ const Dashboard: React.FC = () => {
               <Typography variant="h6" gutterBottom>
                 Recent Chats
               </Typography>
-              {conversations.length > 0 ? (
+              {(conversations || []).length > 0 ? (
                 <List>
-                  {conversations.map((conv, index) => (
+                  {(conversations || []).map((conv, index) => (
                     <React.Fragment key={conv.user._id}>
                       <ListItem
                         sx={{ cursor: 'pointer' }}
@@ -275,9 +283,9 @@ const Dashboard: React.FC = () => {
               <Typography variant="h6" gutterBottom>
                 Suggested People
               </Typography>
-              {randomUsers.length > 0 ? (
+              {(randomUsers || []).length > 0 ? (
                 <List>
-                  {randomUsers.map((suggestedUser, index) => (
+                  {(randomUsers || []).map((suggestedUser, index) => (
                     <React.Fragment key={suggestedUser._id}>
                       <ListItem>
                         <ListItemAvatar>

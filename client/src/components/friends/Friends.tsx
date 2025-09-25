@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Container,
   Typography,
@@ -51,14 +52,20 @@ interface FriendRequest {
 
 const Friends: React.FC = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [friends, setFriends] = useState<User[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchFriendsData();
-  }, []);
+    if (isAuthenticated) {
+      fetchFriendsData();
+    } else {
+      setLoading(false);
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
 
   const fetchFriendsData = async () => {
     try {
@@ -67,10 +74,16 @@ const Friends: React.FC = () => {
         friendsAPI.getFriendRequests(),
       ]);
       
-      setFriends(friendsRes.data.friends);
-      setFriendRequests(requestsRes.data.requests);
+      // Ensure we always have arrays, even if API returns unexpected data
+      const friendsData = friendsRes.data?.friends || [];
+      const requestsData = requestsRes.data?.requests || [];
+      setFriends(Array.isArray(friendsData) ? friendsData : []);
+      setFriendRequests(Array.isArray(requestsData) ? requestsData : []);
     } catch (error) {
       console.error('Error fetching friends data:', error);
+      // Set empty arrays on error to prevent undefined.length errors
+      setFriends([]);
+      setFriendRequests([]);
     } finally {
       setLoading(false);
     }
@@ -83,14 +96,14 @@ const Friends: React.FC = () => {
       
       if (action === 'accept') {
         // Move from requests to friends
-        const request = friendRequests.find(req => req._id === requestId);
+        const request = (friendRequests || []).find(req => req._id === requestId);
         if (request) {
-          setFriends(prev => [...prev, request.from]);
+          setFriends(prev => [...(prev || []), request.from]);
         }
       }
       
       // Remove from requests
-      setFriendRequests(prev => prev.filter(req => req._id !== requestId));
+      setFriendRequests(prev => (prev || []).filter(req => req._id !== requestId));
     } catch (error) {
       console.error('Error responding to friend request:', error);
     } finally {
@@ -101,7 +114,7 @@ const Friends: React.FC = () => {
   const handleRemoveFriend = async (friendId: string) => {
     try {
       await friendsAPI.removeFriend(friendId);
-      setFriends(prev => prev.filter(friend => friend._id !== friendId));
+      setFriends(prev => (prev || []).filter(friend => friend._id !== friendId));
     } catch (error) {
       console.error('Error removing friend:', error);
     }
@@ -138,14 +151,14 @@ const Friends: React.FC = () => {
       </Typography>
 
       {/* Friend Requests */}
-      {friendRequests.length > 0 && (
+      {(friendRequests || []).length > 0 && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Friend Requests ({friendRequests.length})
+              Friend Requests ({(friendRequests || []).length})
             </Typography>
             <List>
-              {friendRequests.map((request, index) => (
+              {(friendRequests || []).map((request, index) => (
                 <React.Fragment key={request._id}>
                   <ListItem>
                     <ListItemAvatar>
@@ -201,11 +214,11 @@ const Friends: React.FC = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Your Friends ({friends.length})
+            Your Friends ({(friends || []).length})
           </Typography>
-          {friends.length > 0 ? (
+          {(friends || []).length > 0 ? (
             <List>
-              {friends.map((friend, index) => (
+              {(friends || []).map((friend, index) => (
                 <React.Fragment key={friend._id}>
                   <ListItem>
                     <ListItemAvatar>

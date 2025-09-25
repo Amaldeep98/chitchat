@@ -30,16 +30,77 @@ const Register: React.FC = () => {
   const [interests, setInterests] = useState<string[]>([]);
   const [interestInput, setInterestInput] = useState('');
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [fieldHints, setFieldHints] = useState<{[key: string]: string}>({});
   const [loading, setLoading] = useState(false);
   
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // Real-time validation function
+  const validateField = (name: string, value: string) => {
+    const hints: {[key: string]: string} = {};
+    
+    switch (name) {
+      case 'username':
+        if (value.length > 0 && value.length < 3) {
+          hints.username = `⚠️ Username needs ${3 - value.length} more characters`;
+        } else if (value.length > 20) {
+          hints.username = `⚠️ Username is ${value.length - 20} characters too long`;
+        } else if (value.length >= 3 && value.length <= 20) {
+          hints.username = '✅ Username looks good';
+        }
+        break;
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (value.length > 0 && !emailRegex.test(value)) {
+          hints.email = '⚠️ Please enter a valid email address';
+        } else if (value.length > 0 && emailRegex.test(value)) {
+          hints.email = '✅ Email format looks good';
+        }
+        break;
+      case 'password':
+        if (value.length > 0 && value.length < 6) {
+          hints.password = `⚠️ Password needs ${6 - value.length} more characters`;
+        } else if (value.length >= 6) {
+          hints.password = '✅ Password length is good';
+        }
+        break;
+      case 'firstName':
+        if (value.length === 0) {
+          hints.firstName = '⚠️ First name is required';
+        } else {
+          hints.firstName = '✅ First name looks good';
+        }
+        break;
+      case 'lastName':
+        if (value.length === 0) {
+          hints.lastName = '⚠️ Last name is required';
+        } else {
+          hints.lastName = '✅ Last name looks good';
+        }
+        break;
+    }
+    
+    setFieldHints(prev => ({ ...prev, ...hints }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+    
+    // Clear validation error for this field when user starts typing
+    if (validationErrors[e.target.name]) {
+      setValidationErrors({
+        ...validationErrors,
+        [e.target.name]: ''
+      });
+    }
+    
+    // Real-time validation
+    validateField(e.target.name, e.target.value);
   };
 
   const handleAddInterest = () => {
@@ -56,6 +117,8 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setValidationErrors({});
+    setFieldHints({}); // Clear hints when submitting
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -67,7 +130,7 @@ const Register: React.FC = () => {
     try {
       const userData = {
         ...formData,
-        age: formData.age ? parseInt(formData.age) : undefined,
+        age: formData.age ? parseInt(formData.age) : null,
         interests,
       };
       delete (userData as any).confirmPassword;
@@ -75,7 +138,33 @@ const Register: React.FC = () => {
       await register(userData);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err);
+      console.error('Registration error:', err);
+      
+      // Handle validation errors
+      if (typeof err === 'string' && err.includes(',')) {
+        // Multiple validation errors
+        const errors: {[key: string]: string} = {};
+        const errorMessages = err.split(', ');
+        
+        errorMessages.forEach((msg: string) => {
+          if (msg.includes('Username')) {
+            errors.username = msg;
+          } else if (msg.includes('Email')) {
+            errors.email = msg;
+          } else if (msg.includes('Password')) {
+            errors.password = msg;
+          } else if (msg.includes('First name')) {
+            errors.firstName = msg;
+          } else if (msg.includes('Last name')) {
+            errors.lastName = msg;
+          }
+        });
+        
+        setValidationErrors(errors);
+        setError('Please fix the validation errors below');
+      } else {
+        setError(err);
+      }
     } finally {
       setLoading(false);
     }
@@ -107,6 +196,20 @@ const Register: React.FC = () => {
             </Alert>
           )}
 
+          {/* Dynamic Validation Feedback */}
+          {Object.keys(validationErrors).length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Please fix the following issues:</strong><br/>
+                {Object.entries(validationErrors).map(([field, message]) => (
+                  <span key={field}>
+                    • {message}<br/>
+                  </span>
+                ))}
+              </Typography>
+            </Alert>
+          )}
+
           <Box component="form" onSubmit={handleSubmit}>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -119,6 +222,8 @@ const Register: React.FC = () => {
                   autoComplete="given-name"
                   value={formData.firstName}
                   onChange={handleChange}
+                  error={!!validationErrors.firstName}
+                  helperText={validationErrors.firstName || fieldHints.firstName}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -131,6 +236,8 @@ const Register: React.FC = () => {
                   autoComplete="family-name"
                   value={formData.lastName}
                   onChange={handleChange}
+                  error={!!validationErrors.lastName}
+                  helperText={validationErrors.lastName || fieldHints.lastName}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -143,6 +250,8 @@ const Register: React.FC = () => {
                   autoComplete="username"
                   value={formData.username}
                   onChange={handleChange}
+                  error={!!validationErrors.username}
+                  helperText={validationErrors.username || fieldHints.username}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -155,6 +264,8 @@ const Register: React.FC = () => {
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleChange}
+                  error={!!validationErrors.email}
+                  helperText={validationErrors.email || fieldHints.email}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -168,6 +279,8 @@ const Register: React.FC = () => {
                   autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
+                  error={!!validationErrors.password}
+                  helperText={validationErrors.password || fieldHints.password}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>

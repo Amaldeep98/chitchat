@@ -104,10 +104,13 @@ const Chat: React.FC = () => {
         usersAPI.getUserProfile(userId!),
       ]);
       
-      // Sort messages by creation date (oldest first, newest at bottom)
-      const sortedMessages = messagesRes.data.messages.sort((a: Message, b: Message) => 
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
+      // Ensure we have messages array, sort by creation date (oldest first, newest at bottom)
+      const messagesData = messagesRes.data?.messages || [];
+      const sortedMessages = Array.isArray(messagesData) 
+        ? messagesData.sort((a: Message, b: Message) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+        : [];
       
       // Decrypt messages if encryption is enabled
       const processedMessages = sortedMessages.map((msg: Message) => {
@@ -137,13 +140,13 @@ const Chat: React.FC = () => {
       setChatUser(userRes.data.user);
       
       // Mark all unread messages as read when chat is opened
-      const unreadMessages = messagesRes.data.messages.filter((msg: Message) => 
+      const unreadMessages = messagesData.filter((msg: Message) => 
         msg.receiver._id === user?._id && !msg.isRead
       );
       
       if (unreadMessages.length > 0) {
         // Update local state to reflect read status first
-        const updatedMessages = messagesRes.data.messages.map((msg: Message) => 
+        const updatedMessages = messagesData.map((msg: Message) => 
           msg.receiver._id === user?._id && !msg.isRead 
             ? { ...msg, isRead: true, readAt: new Date().toISOString() }
             : msg
@@ -161,6 +164,9 @@ const Chat: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching chat data:', error);
+      // Set empty arrays on error to prevent undefined.length errors
+      setMessages([]);
+      setChatUser(null);
     } finally {
       setLoading(false);
     }
@@ -176,7 +182,12 @@ const Chat: React.FC = () => {
     }
     
     console.log('Initializing socket for user:', user._id);
-    const newSocket = io(getSocketUrl());
+    const socketUrl = getSocketUrl();
+    if (!socketUrl) {
+      console.error('Socket URL not configured');
+      return;
+    }
+    const newSocket = io(socketUrl);
     
     newSocket.on('connect', () => {
       console.log('Socket connected:', newSocket.id);
@@ -335,10 +346,10 @@ const Chat: React.FC = () => {
 
   useEffect(() => {
     // Only scroll to bottom when new messages are added, not on every render
-    if (messages.length > 0) {
+    if ((messages || []).length > 0) {
       scrollToBottom();
     }
-  }, [messages.length]);
+  }, [(messages || []).length]);
 
   const handleSendMessage = async () => {
     console.log('handleSendMessage called');
@@ -625,7 +636,7 @@ const Chat: React.FC = () => {
           backgroundColor: '#fafafa',
         }}
       >
-        {messages.length === 0 ? (
+        {(messages || []).length === 0 ? (
           <Box sx={{ textAlign: 'center', mt: 4 }}>
             <Typography variant="body1" color="text.secondary">
               No messages yet. Start the conversation!

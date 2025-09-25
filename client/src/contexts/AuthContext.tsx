@@ -166,6 +166,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = async (userData: any) => {
     dispatch({ type: 'AUTH_START' });
     try {
+      console.log('🔍 Register data being sent:', userData);
       const response = await authAPI.register(userData);
       const { token, user } = response.data;
       
@@ -178,6 +179,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     } catch (error: any) {
       dispatch({ type: 'AUTH_FAILURE' });
+      console.error('❌ Registration error:', error.response?.data);
+      
+      // Handle validation errors
+      if (error.response?.data?.errors) {
+        const validationErrors = error.response.data.errors.map((err: any) => err.msg).join(', ');
+        throw validationErrors;
+      }
+      
       throw error.response?.data?.message || 'Registration failed';
     }
   };

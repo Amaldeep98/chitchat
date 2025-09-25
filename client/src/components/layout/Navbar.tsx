@@ -42,18 +42,30 @@ const Navbar: React.FC = () => {
         const response = await chatAPI.getConversations();
         
         if (isMounted) {
-          const totalUnread = response.data.conversations.reduce((sum: number, conv: any) => sum + conv.unreadCount, 0);
+          // Ensure we have conversations array, even if API returns unexpected data
+          const conversations = response.data?.conversations || [];
+          const totalUnread = Array.isArray(conversations) 
+            ? conversations.reduce((sum: number, conv: any) => sum + (conv.unreadCount || 0), 0)
+            : 0;
           console.log('Setting unread count to:', totalUnread);
           setUnreadCount(totalUnread);
         }
       } catch (error) {
         console.error('Error fetching unread count:', error);
+        if (isMounted) {
+          setUnreadCount(0);
+        }
       }
     };
 
     if (user) {
       // Initialize socket connection
-      const newSocket = io(getSocketUrl());
+      const socketUrl = getSocketUrl();
+      if (!socketUrl) {
+        console.error('Socket URL not configured');
+        return;
+      }
+      const newSocket = io(socketUrl);
       newSocket.emit('join_room', user._id);
       
       // Listen for messages being read

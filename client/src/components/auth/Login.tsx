@@ -11,6 +11,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { authAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Login: React.FC = () => {
@@ -38,16 +39,13 @@ const Login: React.FC = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/health`, {
-          method: 'GET',
-          signal: controller.signal,
-        });
+        const response = await authAPI.health();
         
         clearTimeout(timeoutId);
         
         if (!isMounted) return;
         
-        if (response.ok) {
+        if (response.status === 200) {
           setBackendStatus('online');
         } else {
           setBackendStatus('offline');
@@ -196,7 +194,7 @@ const Login: React.FC = () => {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 5000);
                     
-                    const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/health`, {
+                    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/health`, {
                       method: 'GET',
                       signal: controller.signal,
                     });
