@@ -15,41 +15,42 @@ const chatRoutes = require('./routes/chat');
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS configuration from environment
+const corsOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+  : [
+      process.env.CLIENT_URL,
+      // Allow any local network IPs
+      /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
+      /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
+      /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/,
+      // Allow tunnel services
+      /^https:\/\/.*\.ngrok-free\.app$/,
+      /^https:\/\/.*\.ngrok\.io$/,
+      /^https:\/\/.*\.devtunnels\.ms$/,
+      /^https:\/\/.*\.trycloudflare\.com$/,
+      /^https:\/\/.*\.loca\.lt$/
+    ];
+
 const io = socketIo(server, {
   cors: {
-    origin: [
-      process.env.CLIENT_URL || "http://localhost:3000",
-      "http://localhost:3000",
-      "http://192.168.0.102:3000",
-      "http://192.168.0.102:5000",
-      "https://b16584797980.ngrok-free.app",
-      /^http:\/\/192\.168\.0\.\d+:3000$/,
-      /^http:\/\/192\.168\.0\.\d+:5000$/,
-      /^https:\/\/.*\.ngrok-free\.app$/
-    ],
+    origin: corsOrigins,
     methods: ["GET", "POST"]
   }
 });
 
-// Middleware
+console.log('🔧 CORS Origins configured:', corsOrigins);
+
 app.use(cors({
-  origin: [
-    process.env.CLIENT_URL || "http://localhost:3000",
-    "http://localhost:3000", 
-    "http://192.168.0.102:3000",
-    "http://192.168.0.102:5000",
-    "https://b16584797980.ngrok-free.app",
-    /^http:\/\/192\.168\.0\.\d+:3000$/,
-    /^http:\/\/192\.168\.0\.\d+:5000$/,
-    /^https:\/\/.*\.ngrok-free\.app$/
-  ],
+  origin: corsOrigins,
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chitchat', {
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -272,5 +273,6 @@ const HOST = process.env.HOST || '0.0.0.0'; // Bind to all interfaces for networ
 
 server.listen(PORT, HOST, () => {
   console.log(`Server running on ${HOST}:${PORT}`);
-  console.log(`Accessible from network at: http://192.168.0.102:${PORT}`);
+  console.log(`Accessible from network at: http://${HOST}:${PORT}`);
+  console.log(`Public URL: ${process.env.SERVER_URL || 'Not configured'}`);
 });
